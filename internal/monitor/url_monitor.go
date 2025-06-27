@@ -2,7 +2,6 @@ package monitor
 
 import (
 	"log"
-	"net/http"
 	"sync" // Pour protéger l'accès concurrentiel à knownStates
 	"time"
 
@@ -48,11 +47,19 @@ func (m *UrlMonitor) checkUrls() {
 	// TODO : Récupérer toutes les URLs longues actives depuis le linkRepo (GetAllLinks).
 	// Gérer l'erreur si la récupération échoue.
 	// Si erreur : log.Printf("[MONITOR] ERREUR lors de la récupération des liens pour la surveillance : %v", err)
-	links, err :=
+	links, err := m.linkRepo.GetAllLinks()
+	if err != nil {
+		log.Printf("[MONITOR] ERREUR lors de la récupération des liens pour la surveillance : %v", err)
+		return
+	}
 
 	for _, link := range links {
 		// TODO : Pour chaque lien, vérifier son accessibilité (isUrlAccessible).
-		currentState :=
+		currentState := m.isUrlAccessible(link.LongURL)
+		if err != nil {
+			log.Printf("[MONITOR] ERREUR lors de la vérification de l'URL '%s': %v", link.LongURL, err)
+			continue
+		}
 
 		// Protéger l'accès à la map 'knownStates' car 'checkUrls' peut être exécuté concurremment
 		m.mu.Lock()
