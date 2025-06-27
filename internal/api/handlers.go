@@ -9,7 +9,6 @@ import (
 	"gorm.io/gorm"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 )
 
@@ -26,7 +25,8 @@ func SetupRoutes(router *gin.Engine, linkService *services.LinkService) {
 	v1.GET("/health", HealthCheckHandler)
 	v1.POST("/links", CreateShortLinkHandler(linkService))
 	v1.GET("/links/:shortCode/stats", GetLinkStatsHandler(linkService))
-	v1.GET("/:shortCode", RedirectHandler(linkService))
+
+	router.GET("/:shortCode", RedirectHandler(linkService))
 }
 
 // HealthCheckHandler gère la route /health pour vérifier l'état du service.
@@ -60,7 +60,7 @@ func CreateShortLinkHandler(linkService *services.LinkService) gin.HandlerFunc {
 		c.JSON(http.StatusCreated, gin.H{
 			"short_code":     link.ShortCode,
 			"long_url":       link.LongURL,
-			"full_short_url": cmd.Cfg.Server.BaseURL + ":" + strconv.Itoa(cmd.Cfg.Server.Port) + "/" + link.ShortCode,
+			"full_short_url": cmd.Cfg.Server.BaseURL + "/" + link.ShortCode,
 		})
 	}
 }
