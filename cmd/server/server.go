@@ -71,12 +71,12 @@ puis lance le serveur HTTP.`,
 		// Le channel est bufferisé avec la taille configurée.
 		// Passez le channel et le clickRepo aux workers.
 
-		clickEventsChannel := make(chan models.ClickEvent, cfg.Workers.ClickEventsBufferSize)
-		workers.StartClickWorkers(cfg.Analytics.WorkerCount, clickEventsChannel, clickRepo)
+		clickEventsChannel := make(chan *models.ClickEvent, cfg.Workers.ClickEventsBufferSize)
+		api.ClickEventsChannel = clickEventsChannel
 
 		// TODO : Remplacer les XXX par les bonnes variables
-		log.Printf("Channel d'événements de clic initialisé avec un buffer de %d. %d worker(s) de clics démarré(s).",
-			cfg.Workers.ClickEventsBufferSize, cfg.Analytics.WorkerCount)
+		workers.StartClickWorkers(cfg.Analytics.WorkerCount, clickEventsChannel, clickRepo)
+		log.Printf("Channel d'événements de clic initialisé avec un buffer de %d. %d worker(s) de clics démarré(s).", cfg.Workers.ClickEventsBufferSize, cfg.Analytics.WorkerCount)
 
 		// TODO : Initialiser et lancer le moniteur d'URLs.
 		// Utilisez l'intervalle configuré (cfg.Monitor.IntervalMinutes).
