@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"github.com/axellelanca/urlshortener/internal/config"
-	"log"
 	"os"
 
 	cmd2 "github.com/axellelanca/urlshortener/cmd"
@@ -31,12 +30,14 @@ basées sur les modèles Go.`,
 		// TODO 2: Initialiser la connexion à la base de données SQLite avec GORM.
 		db, err := gorm.Open(sqlite.Open(configs.Database.Name), &gorm.Config{})
 		if err != nil {
-			log.Fatalf("Erreur lors de l'ouverture de la base SQLite : %v", err)
+			fmt.Fprintf(os.Stderr, "Erreur lors de l'ouverture de la base SQLite : %v", err)
+			os.Exit(1)
 		}
 
 		sqlDB, err := db.DB()
 		if err != nil {
-			log.Fatalf("FATAL: Échec de l'obtention de la base de données SQL sous-jacente: %v", err)
+			fmt.Fprintf(os.Stderr, "FATAL: Échec de l'obtention de la base de données SQL sous-jacente: %v", err)
+			os.Exit(1)
 		}
 		// TODO Assurez-vous que la connexion est fermée après la migration.
 		defer sqlDB.Close()
@@ -44,7 +45,8 @@ basées sur les modèles Go.`,
 		// TODO 3: Exécuter les migrations automatiques de GORM.
 		err = db.AutoMigrate(&models.Link{}, &models.Click{})
 		if err != nil {
-			log.Fatalf("Erreur lors de l'exécution des migrations : %v", err)
+			fmt.Fprintf(os.Stderr, "Erreur lors de l'exécution des migrations : %v", err)
+			os.Exit(1)
 		}
 
 		// Pas touche au log

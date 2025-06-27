@@ -3,9 +3,8 @@ package cli
 import (
 	"fmt"
 	"github.com/axellelanca/urlshortener/internal/config"
-	"log"
 	"os"
-	"sync"
+	//"sync"
 
 	cmd2 "github.com/axellelanca/urlshortener/cmd"
 	"github.com/axellelanca/urlshortener/internal/repository"
@@ -33,26 +32,28 @@ Exemple:
 	Run: func(cmd *cobra.Command, args []string) {
 		// TODO : Valider que le flag --code a été fourni.
 		if inputShortenedURL == "" {
-			fmt.Println("Aucun code d'URL raccourcie n'a été fournie.")
+			fmt.Fprintf(os.Stderr, "Aucun code d'URL raccourcie n'a été fournie.")
 			os.Exit(1)
 		}
 
 		// TODO : Charger la configuration chargée globalement via cmd.cfg
 		configs, err := config.LoadConfig()
 		if err != nil {
-			fmt.Printf("Erreur lors du chargement de la configuration : %v\n", err)
+			fmt.Fprintf(os.Stderr, "Erreur lors du chargement de la configuration : %v\n", err)
 			os.Exit(1)
 		}
 
 		// TODO 3: Initialiser la connexion à la base de données SQLite avec GORM.
 		db, err := gorm.Open(sqlite.Open(configs.Database.Name), &gorm.Config{})
 		if err != nil {
-			log.Fatalf("Erreur lors de l'ouverture de la base SQLite : %v", err)
+			fmt.Fprintf(os.Stderr, "Erreur lors de l'ouverture de la base SQLite : %v", err)
+			os.Exit(1)
 		}
 
 		sqlDB, err := db.DB()
 		if err != nil {
-			log.Fatalf("FATAL: Échec de l'obtention de la base de données SQL sous-jacente: %v", err)
+			fmt.Fprintf(os.Stderr, "FATAL: Échec de l'obtention de la base de données SQL sous-jacente: %v", err)
+			os.Exit(1)
 		}
 		// TODO S'assurer que la connexion est fermée à la fin de l'exécution de la commande
 		defer sqlDB.Close()
@@ -65,9 +66,9 @@ Exemple:
 		link, totalClicks, err := service.GetLinkStats(inputShortenedURL)
 		if err != nil {
 			if err == gorm.ErrRecordNotFound {
-				fmt.Printf("Aucun lien trouvé pour le code: %s\n", inputShortenedURL)
+				fmt.Fprintf(os.Stderr, "Aucun lien trouvé pour le code: %s\n", inputShortenedURL)
 			} else {
-				fmt.Printf("Erreur lors de la récupération des statistiques : %v\n", err)
+				fmt.Fprintf(os.Stderr, "Erreur lors de la récupération des statistiques : %v\n", err)
 			}
 			os.Exit(1)
 		}

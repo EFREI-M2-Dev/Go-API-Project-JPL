@@ -37,13 +37,15 @@ puis lance le serveur HTTP.`,
 		// TODO : Charger la configuration chargée globalement via cmd.cfg
 		configs, err := config.LoadConfig()
 		if err != nil {
-			log.Fatalf("Erreur lors du chargement de la configuration : %v", err)
+			fmt.Fprintf(os.Stderr, "Erreur lors du chargement de la configuration : %v\n", err)
+			os.Exit(1)
 		}
 
 		// TODO : Initialiser la connexion à la base de données SQLite avec GORM.
-		db, err := gorm.Open(configs.Database.Name, &gorm.Config{})
+		db, err := gorm.Open(sqlite.Open(configs.Database.Name), &gorm.Config{})
 		if err != nil {
-			log.Fatalf("Erreur lors de la base SQLite : %v", err)
+			fmt.Fprintf(os.Stderr, "Erreur lors de la base SQLite : %v", err)
+			os.Exit(1)
 		}
 
 		// TODO : Initialiser les repositories.
@@ -53,11 +55,11 @@ puis lance le serveur HTTP.`,
 
 		// TODO : Initialiser les services métiers.
 		linkService := services.NewLinkService(linkRepository)
-		clickService := services.NewClickService(clickRepository)
+		//clickService := services.NewClickService(clickRepository)
 		log.Println("Services métiers initialisés.")
 
 		// TODO : Initialiser le channel ClickEventsChannel (api/handlers) des événements de clic et lancer les workers (StartClickWorkers).
-		clickEventChannel := make(chan models.Click, configs.Analytics.BufferSize)
+		clickEventChannel := make(chan models.ClickEvent, configs.Analytics.BufferSize)
 		go workers.StartClickWorkers(configs.Analytics.WorkerCount, clickEventChannel, clickRepository)
 		log.Printf("Channel d'événements de clic initialisé avec un buffer de %d. %d worker(s) de clics démarré(s).",
 			configs.Analytics.BufferSize, configs.Analytics.WorkerCount)
@@ -84,7 +86,8 @@ puis lance le serveur HTTP.`,
 		go func() {
 			log.Printf("Serveur démarré sur %s", serverAddr)
 			if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				log.Fatalf("Erreur lors du démarrage du serveur : %v", err)
+				fmt.Fprintf(os.Stderr, "Erreur lors du démarrage du serveur : %v", err)
+				os.Exit(1)
 			}
 		}()
 
