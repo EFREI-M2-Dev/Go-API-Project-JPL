@@ -36,7 +36,7 @@ func (r *GormLinkRepository) CreateLink(link *models.Link) error {
 // GetLinkByShortCode récupère un lien de la base de données en utilisant son shortCode.
 func (r *GormLinkRepository) GetLinkByShortCode(shortCode string) (*models.Link, error) {
 	var link models.Link
-	if err := r.db.Where("shortcode = ?", shortCode).First(&link).Error; err != nil {
+	if err := r.db.Where("short_code = ?", shortCode).First(&link).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, gorm.ErrRecordNotFound
 		}
