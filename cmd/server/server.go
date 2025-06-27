@@ -3,13 +3,14 @@ package server
 import (
 	"errors"
 	"fmt"
-	"github.com/axellelanca/urlshortener/internal/config"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/axellelanca/urlshortener/internal/config"
 
 	cmd2 "github.com/axellelanca/urlshortener/cmd"
 	"github.com/axellelanca/urlshortener/internal/api"
@@ -59,10 +60,18 @@ puis lance le serveur HTTP.`,
 		log.Println("Services métiers initialisés.")
 
 		// TODO : Initialiser le channel ClickEventsChannel (api/handlers) des événements de clic et lancer les workers (StartClickWorkers).
-		clickEventChannel := make(chan models.ClickEvent, configs.Analytics.BufferSize)
-		go workers.StartClickWorkers(configs.Analytics.WorkerCount, clickEventChannel, clickRepository)
-		log.Printf("Channel d'événements de clic initialisé avec un buffer de %d. %d worker(s) de clics démarré(s).",
-			configs.Analytics.BufferSize, configs.Analytics.WorkerCount)
+		clickEventsChannel := make(chan *models.ClickEvent, cmd2.Cfg.Analytics.BufferSize)
+		api.ClickEventsChannel = clickEventsChannel
+
+		workers.StartClickWorkers(
+			cmd2.Cfg.Analytics.WorkerCount,
+			clickEventsChannel,
+			clickRepository,
+		)
+		log.Printf(
+			"Channel de clics initialisé (buffer=%d) et %d worker(s) démarré(s).",
+			cmd2.Cfg.Analytics.BufferSize, cmd2.Cfg.Analytics.WorkerCount,
+		)
 
 		// TODO : Initialiser et lancer le moniteur d'URLs.
 		monitorInterval := time.Duration(configs.Monitor.IntervalMinutes) * time.Minute
