@@ -19,24 +19,26 @@ var MigrateCmd = &cobra.Command{
 et exécute les migrations automatiques de GORM pour créer les tables 'links' et 'clicks'
 basées sur les modèles Go.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// TODO : Charger la configuration chargée globalement via cmd.cfg
-
-		// TODO 2: Initialiser la connexion à la base de données SQLite avec GORM.
-
+		cfg := cmd2.Cfg
+		if cfg == nil {
+			log.Fatalf("Erreur: configuration non chargée.")
+		}
+		db, err := gorm.Open(sqlite.Open(cfg.Database.Name), &gorm.Config{})
+		if err != nil {
+			log.Fatalf("FATAL: Échec de la connexion à la base de données: %v", err)
+		}
 		sqlDB, err := db.DB()
 		if err != nil {
 			log.Fatalf("FATAL: Échec de l'obtention de la base de données SQL sous-jacente: %v", err)
 		}
-		// TODO Assurez-vous que la connexion est fermée après la migration.
-
-		// TODO 3: Exécuter les migrations automatiques de GORM.
-		// Utilisez db.AutoMigrate() et passez-lui les pointeurs vers tous vos modèles.
-
-		// Pas touche au log
+		defer sqlDB.Close()
+		if err := db.AutoMigrate(&models.Link{}, &models.Click{}); err != nil {
+			log.Fatalf("FATAL: Erreur lors de la migration: %v", err)
+		}
 		fmt.Println("Migrations de la base de données exécutées avec succès.")
 	},
 }
 
 func init() {
-	// TODO : Ajouter la commande à RootCmd
+	cmd2.RootCmd.AddCommand(MigrateCmd)
 }

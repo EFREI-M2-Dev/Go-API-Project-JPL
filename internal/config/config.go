@@ -15,6 +15,7 @@ type Config struct {
 	Database  DatabaseConfig  `mapstructure:"database"`
 	Analytics AnalyticsConfig `mapstructure:"analytics"`
 	Monitor   MonitorConfig   `mapstructure:"monitor"`
+	Workers   WorkersConfig   `mapstructure:"workers"`
 }
 
 type ServerConfig struct {
@@ -33,6 +34,10 @@ type AnalyticsConfig struct {
 
 type MonitorConfig struct {
 	IntervalMinutes int `mapstructure:"interval_minutes"`
+}
+
+type WorkersConfig struct {
+	ClickEventsBufferSize int `mapstructure:"click_events_buffer_size"`
 }
 
 func LoadConfig() (*Config, error) {
