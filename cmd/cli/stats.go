@@ -45,7 +45,7 @@ Exemple:
 		}
 
 		// TODO 3: Initialiser la connexion à la base de données SQLite avec GORM.
-		db, err := gorm.Open(sqlite.Open(cfg.Database.Name), &gorm.Config{})
+		db, err := gorm.Open(sqlite.Open(configs.Database.Name), &gorm.Config{})
 		if err != nil {
 			log.Fatalf("Erreur lors de l'ouverture de la base SQLite : %v", err)
 		}
