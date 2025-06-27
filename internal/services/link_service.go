@@ -31,7 +31,7 @@ func NewLinkService(linkRepo repository.LinkRepository) *LinkService {
 // GenerateShortCode est une méthode rattachée à LinkService
 func GenerateShortCode(length int) (string, error) {
 	if length <= 0 {
-		return "", errors.New("[GenerateShortCode] la longueur doit être supérieure à 0")
+		return "", errors.New("[Service::GenerateShortCode] la longueur doit être supérieure à 0")
 	}
 
 	shortCode := make([]byte, length)
@@ -39,7 +39,7 @@ func GenerateShortCode(length int) (string, error) {
 		// Génère un index aléatoire dans le charset
 		index, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
 		if err != nil {
-			return "", fmt.Errorf("[GenerateShortCode] Erreur de génération du code: %w", err)
+			return "", fmt.Errorf("[Service::GenerateShortCode] Erreur de génération du code: %w", err)
 		}
 		shortCode[i] = charset[index.Int64()]
 	}
@@ -48,7 +48,6 @@ func GenerateShortCode(length int) (string, error) {
 }
 
 // CreateLink crée un nouveau lien raccourci.
-// Il génère un code court unique, puis persiste le lien dans la base de données.
 func (s *LinkService) CreateLink(longURL string) (*models.Link, error) {
 	const maxRetries = 5
 	var shortCode string
@@ -57,25 +56,25 @@ func (s *LinkService) CreateLink(longURL string) (*models.Link, error) {
 	for i := 0; i < maxRetries; i++ {
 		shortCode, err = GenerateShortCode(6)
 		if err != nil {
-			return nil, fmt.Errorf("erreur lors de la génération du code court: %w", err)
+			return nil, fmt.Errorf("[Service::CreateLink] Erreur lors de la génération du code court: %w", err)
 		}
 
 		_, err = s.linkRepo.GetLinkByShortCode(shortCode)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				// Le code est unique
+				// Le code est unique on peut sortir de la boucle
 				break
 			}
-			return nil, fmt.Errorf("erreur lors de la vérification d'unicité du code court: %w", err)
+			return nil, fmt.Errorf("[Service::CreateLink] Erreur lors de la vérification d'unicité du code court: %w", err)
 		}
 
 		// Collision détectée, on log et on retente
-		log.Printf("Short code '%s' déjà existant, nouvelle tentative (%d/%d)...", shortCode, i+1, maxRetries)
+		log.Printf("[Service::CreateLink] Short code '%s' déjà existant, nouvelle tentative (%d/%d)...", shortCode, i+1, maxRetries)
 	}
 
 	if err == nil {
-		// Si on sort de la boucle sans erreur, c'est qu'on a trouvé un code existant à chaque fois
-		return nil, errors.New("impossible de générer un code court unique après plusieurs tentatives")
+		// Si on sort de la boucle sans erreurs, c'est qu'on a trouvé un code existant à chaque fois
+		return nil, errors.New("[Service::CreateLink] Impossible de gén un code court unique après plusieurs tentatives")
 	}
 
 	link := &models.Link{
@@ -85,27 +84,41 @@ func (s *LinkService) CreateLink(longURL string) (*models.Link, error) {
 	}
 
 	if err := s.linkRepo.CreateLink(link); err != nil {
-		return nil, fmt.Errorf("erreur lors de la création du lien: %w", err)
+		return nil, fmt.Errorf("[Service::CreateLink] erreur lors de la création du lien: %w", err)
 	}
 
 	return link, nil
 }
 
-// GetLinkByShortCode récupère un lien via son code court.
-// Il délègue l'opération de recherche au repository.
+// GetLinkByShortCode récupère un lien via son court code
 func (s *LinkService) GetLinkByShortCode(shortCode string) (*models.Link, error) {
-	// TODO : Récupérer un lien par son code court en utilisant s.linkRepo.GetLinkByShortCode.
-	// Retourner le lien trouvé ou une erreur si non trouvé/problème DB.
-
+	link, err := s.linkRepo.GetLinkByShortCode(shortCode)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("[Service::GetLinkByShortCode] Lien non trouvé pour le code court '%s': %w", shortCode, err)
+		}
+		return nil, fmt.Errorf("[Service::GetLinkByShortCode] Erreur lors de la récupération du lien: %w", err)
+	}
+	return link, nil
 }
 
 // GetLinkStats récupère les statistiques pour un lien donné (nombre total de clics).
 // Il interagit avec le LinkRepository pour obtenir le lien, puis avec le ClickRepository
 func (s *LinkService) GetLinkStats(shortCode string) (*models.Link, int, error) {
 	// TODO : Récupérer le lien par son shortCode
+	link, err := s.GetLinkByShortCode(shortCode)
+	if err != nil {
+		return nil, 0, fmt.Errorf("[Service::GetLinkStats] Erreur lors de la récupération du lien: %w", err)
+	}
+	if link == nil {
+		return nil, 0, fmt.Errorf("[Service::GetLinkStats] Lien non trouvé pour le code court '%s'", shortCode)
+	}
 
-	// TODO 4: Compter le nombre de clics pour ce LinkID
+	clicksCount, err := s.linkRepo.CountClicksByLinkID(link.ID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("[Service::GetLinkStats] Erreur lors du comptage des clics pour le lien ID %d: %w", link.ID, err)
+	}
 
-	// TODO : on retourne les 3 valeurs
-	return
+	// On retourne les 3 valeurs demandées
+	return link, clicksCount, nil
 }
