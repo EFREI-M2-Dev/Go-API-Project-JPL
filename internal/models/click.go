@@ -16,6 +16,7 @@ type Click struct {
 type ClickEvent struct {
 	LinkID    uint
 	Timestamp time.Time
+	ShortCode string
 	UserAgent string
 	IPAddress string
 }
