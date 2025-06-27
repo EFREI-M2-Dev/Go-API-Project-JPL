@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"fmt"
+	"github.com/axellelanca/urlshortener/internal/config"
 	"log"
 	"net/http"
 	"os"
@@ -31,56 +32,64 @@ var RunServerCmd = &cobra.Command{
 	Long: `Cette commande initialise la base de données, configure les APIs,
 démarre les workers asynchrones pour les clics et le moniteur d'URLs,
 puis lance le serveur HTTP.`,
+
 	Run: func(cmd *cobra.Command, args []string) {
 		// TODO : Charger la configuration chargée globalement via cmd.cfg
-		// Ne pas oublier la gestion d'erreur (si nil ?), si erreur, faire un log.Fataf
+		configs, err := config.LoadConfig()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Erreur lors du chargement de la configuration : %v\n", err)
+			os.Exit(1)
+		}
 
 		// TODO : Initialiser la connexion à la base de données SQLite avec GORM.
-		// Utilisez le nom de la base de données depuis la configuration (cfg.Database.Name).
+		db, err := gorm.Open(sqlite.Open(configs.Database.Name), &gorm.Config{})
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Erreur lors de la base SQLite : %v", err)
+			os.Exit(1)
+		}
 
 		// TODO : Initialiser les repositories.
-		// Créez des instances de GormLinkRepository et GormClickRepository.
-
-		// Laissez le log
+		linkRepository := repository.NewLinkRepository(db)
+		clickRepository := repository.NewClickRepository(db)
 		log.Println("Repositories initialisés.")
 
 		// TODO : Initialiser les services métiers.
-		// Créez des instances de LinkService et ClickService, en leur passant les repositories nécessaires.
-
-		// Laissez le log
+		linkService := services.NewLinkService(linkRepository)
+		//clickService := services.NewClickService(clickRepository)
 		log.Println("Services métiers initialisés.")
 
 		// TODO : Initialiser le channel ClickEventsChannel (api/handlers) des événements de clic et lancer les workers (StartClickWorkers).
-		// Le channel est bufferisé avec la taille configurée.
-		// Passez le channel et le clickRepo aux workers.
-
-		// TODO : Remplacer les XXX par les bonnes variables
+		clickEventChannel := make(chan models.ClickEvent, configs.Analytics.BufferSize)
+		go workers.StartClickWorkers(configs.Analytics.WorkerCount, clickEventChannel, clickRepository)
 		log.Printf("Channel d'événements de clic initialisé avec un buffer de %d. %d worker(s) de clics démarré(s).",
-			XXX, XXX)
+			configs.Analytics.BufferSize, configs.Analytics.WorkerCount)
 
 		// TODO : Initialiser et lancer le moniteur d'URLs.
-		// Utilisez l'intervalle configuré (cfg.Monitor.IntervalMinutes).
-		// Lancez le moniteur dans sa propre goroutine.
-		monitorInterval := time.Duration(XXX) * time.Minute
-		urlMonitor := monitor.NewUrlMonitor() // Le moniteur a besoin du linkRepo et de l'interval
+		monitorInterval := time.Duration(configs.Monitor.IntervalMinutes) * time.Minute
+		urlMonitor := monitor.NewUrlMonitor(linkRepository, monitorInterval) // Le moniteur a besoin du linkRepo et de l'interval
 		go urlMonitor.Start()
 		log.Printf("Moniteur d'URLs démarré avec un intervalle de %v.", monitorInterval)
 
 		// TODO : Configurer le routeur Gin et les handlers API.
-		// Passez les services nécessaires aux fonctions de configuration des routes.
-
-		// Pas toucher au log
+		router := gin.Default()
+		api.SetupRoutes(router, linkService)
 		log.Println("Routes API configurées.")
 
 		// Créer le serveur HTTP Gin
-		serverAddr := fmt.Sprintf(":%d", cfg.Server.Port)
+		serverAddr := fmt.Sprintf(":%d", configs.Server.Port)
 		srv := &http.Server{
 			Addr:    serverAddr,
 			Handler: router,
 		}
 
 		// TODO : Démarrer le serveur Gin dans une goroutine anonyme pour ne pas bloquer.
-		// Pensez à logger des ptites informations...
+		go func() {
+			log.Printf("Serveur démarré sur %s", serverAddr)
+			if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				fmt.Fprintf(os.Stderr, "Erreur lors du démarrage du serveur : %v", err)
+				os.Exit(1)
+			}
+		}()
 
 		// Gére l'arrêt propre du serveur (graceful shutdown).
 		// Créez un channel pour les signaux OS (SIGINT, SIGTERM).
@@ -101,4 +110,5 @@ puis lance le serveur HTTP.`,
 
 func init() {
 	// TODO : ajouter la commande
+	cmd2.RootCmd.AddCommand(RunServerCmd)
 }
