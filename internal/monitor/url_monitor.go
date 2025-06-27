@@ -22,7 +22,11 @@ type UrlMonitor struct {
 // NewUrlMonitor crée et retourne une nouvelle instance de UrlMonitor.
 // Attention: retourne un pointeur
 func NewUrlMonitor(linkRepo repository.LinkRepository, interval time.Duration) *UrlMonitor {
-	return
+	return &UrlMonitor{
+		linkRepo:    linkRepo,
+		interval:    interval,
+		knownStates: make(map[uint]bool),
+	}
 }
 
 // Start lance la boucle de surveillance périodique des URLs.
@@ -69,7 +73,7 @@ func (m *UrlMonitor) checkUrls() {
 		m.mu.Unlock()
 
 		// Si c'est la première vérification pour ce lien, on initialise l'état sans notifier.
-		if !exists {
+		if exists {
 			log.Printf("[MONITOR] État initial pour le lien %s (%s) : %s",
 				link.ShortCode, link.LongURL, formatState(currentState))
 			continue
@@ -99,8 +103,13 @@ func (m *UrlMonitor) isUrlAccessible(url string) bool {
 	// TODO: Effectuer une requête HEAD (plus légère que GET) sur l'URL.
 	// Un code de statut 2xx ou 3xx indique que l'URL est accessible.
 	// Si err : log.Printf("[MONITOR] Erreur d'accès à l'URL '%s': %v", url, err)
-
+	resp, err := client.Head(url)
+	if err != nil {
+		log.Printf("[MONITOR] Erreur d'accès à l'URL '%s': %v", url, err)
+		return false
+	}
 	// TODO Assurez-vous de fermer le corps de la réponse pour libérer les ressources
+	defer resp.Body.Close()
 	// Déterminer l'accessibilité basée sur le code de statut HTTP.
 	return resp.StatusCode >= 200 && resp.StatusCode < 400 // Codes 2xx ou 3xx
 }
